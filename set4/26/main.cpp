@@ -9,7 +9,7 @@
 using namespace std;
 
 unsigned char key[16];
-unsigned char iv[16];
+unsigned char nonce[8];
 
 int encryption_oracle(unsigned char *ciphertext, const char *plaintext) {
   unsigned char prefix[1024];
@@ -25,7 +25,7 @@ int encryption_oracle(unsigned char *ciphertext, const char *plaintext) {
   memcpy(newplaintext+prefix_len+plaintext_len, append, append_len);
   int ciphertext_len;
   
-  ciphertext_len = encryptCbc(newplaintext, prefix_len+plaintext_len+append_len, key, iv, ciphertext);
+  ciphertext_len = encryptCtr(newplaintext, prefix_len+plaintext_len+append_len, key, nonce, ciphertext);
 
   delete [] newplaintext;
   return ciphertext_len;
@@ -40,7 +40,7 @@ int main() {
 
   arc4random_buf(key, 16);
 
-  arc4random_buf(iv, 16);
+  arc4random_buf(nonce, 8);
 
   init_openssl();
 
@@ -50,7 +50,7 @@ int main() {
   string sane_input = sanitize_input(input);
   strcpy(plaintext, sane_input.c_str());
 
-  // Craft input: aaaaaaaaaaaaaaaaaaaaa:admin<true
+  // Craft input: aaaaa:admin<true
   ciphertext_len = encryption_oracle(ciphertext, plaintext);
   //bytesToHex(ciphertext, ciphertext_len, cipherHex);
   //cout << cipherHex << endl;
@@ -59,7 +59,7 @@ int main() {
   ciphertext[37] ^= 1;
   ciphertext[43] ^= 1;
   
-  plaintext_len = decryptCbc(ciphertext, ciphertext_len, key, iv, (unsigned char *)plaintext);
+  plaintext_len = decryptCtr(ciphertext, ciphertext_len, key, nonce, (unsigned char *)plaintext);
   plaintext[plaintext_len] = '\0';
 
   //cout << plaintext << endl;

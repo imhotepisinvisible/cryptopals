@@ -17,4 +17,6 @@ int pkcs7padding(unsigned char *block, int blockSize);
 
 int detect_cipher(unsigned char *input, int input_len);
 
+std::string sanitize_input(std::string input);
+
 #endif

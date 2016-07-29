@@ -49,8 +49,8 @@ char singleCharXor(unsigned char *dest, unsigned char *source, int source_len) {
 
   int result;
   int topScore = 0;
-  for (unsigned char c = ' '; c <= 'z'; c++) {
-    memset(charBytes, c, source_len);
+  for (int c = 0; c <= 255; c++) {
+    memset(charBytes, (char)c, source_len);
     doXor(candidateBytes, source, charBytes, source_len);
     result = countSpaces(candidateBytes);
     if (result > topScore) {
@@ -117,4 +117,22 @@ int detect_cipher(unsigned char *input, int input_len) {
     delete [] blocks[i];
   delete [] blocks;
   return firstBlock;
+}
+
+string sanitize_input(string input) {
+  size_t found = input.find('=');
+  while (found!=std::string::npos) {
+    input.insert(found, "\'");
+    found += 2;
+    input.insert(found, "\'");
+    found = input.find('=', found);
+  }
+  found = input.find(';');
+  while (found!=std::string::npos) {
+    input.insert(found, "\'");
+    found += 2;
+    input.insert(found, "\'");
+    found = input.find(';', found);
+  }
+  return input;
 }

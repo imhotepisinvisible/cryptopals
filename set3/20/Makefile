@@ -1,0 +1,20 @@
+INC=-I../../utils -I/usr/local/Cellar/openssl/1.0.2/include
+UTILS=../../utils/
+OBJ=main.o $(UTILS)conversions.o $(UTILS)utils.o $(UTILS)crypto.o
+EXECUTABLE = a.out
+GCC = g++
+CFLAGS = -g -Wall -MMD
+LDFLAGS=-L/usr/local/Cellar/openssl/1.0.2/lib -lcrypto
+
+$(EXECUTABLE): $(OBJ)
+	$(GCC) $(CFLAGS) $(INC) $(LDFLAGS) $(OBJ) -o $(EXECUTABLE)
+
+%.o: %.cpp
+	$(GCC) $(CFLAGS) $(INC) -c $< -o $@
+
+-include $(OBJ:.o=.d)
+
+.PHONY: clean
+
+clean:
+	rm -f $(OBJ) $(EXECUTABLE) $(OBJ:.o=.d)
