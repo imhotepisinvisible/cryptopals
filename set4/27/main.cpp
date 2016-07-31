@@ -31,16 +31,32 @@ int encryption_oracle(unsigned char *ciphertext, const char *plaintext) {
   return ciphertext_len;
 }
 
+bool ascii_compliant(const char *plaintext) {
+  bool ret = true;
+
+  while (*plaintext) {
+    if ((unsigned char)*plaintext > 127) {
+      ret = false;
+      break;
+    }
+    plaintext++;
+  }
+  
+  return ret;
+}
+
 int main() {
   string input;
   char plaintext[1024];
   unsigned char ciphertext[1024];
-  //char * cipherHex = new char[2048];
+  unsigned char modified_ciphertext[1024];
+  //char *cipherHex = new char[2048];
   int plaintext_len, ciphertext_len;
+  int blockSize = 16;
 
   arc4random_buf(key, 16);
 
-  arc4random_buf(iv, 16);
+  memcpy(iv, key, 16);
 
   init_openssl();
 
@@ -50,20 +66,32 @@ int main() {
   string sane_input = sanitize_input(input);
   strcpy(plaintext, sane_input.c_str());
 
-  // Craft input: aaaaaaaaaaaaaaaaaaaaa:admin<true
+  // Craft input: aaaaaaaaaaaaaaaa
   ciphertext_len = encryption_oracle(ciphertext, plaintext);
   //bytesToHex(cipherHex, ciphertext, ciphertext_len);
   //cout << cipherHex << endl;
 
-  // Flip bits 48 and 96 in block 3 (out of 16*8 total)
-  ciphertext[37] ^= 1;
-  ciphertext[43] ^= 1;
-  
-  plaintext_len = decryptCbc(ciphertext, ciphertext_len, key, iv, (unsigned char *)plaintext);
+  // Attacker: Modify ciphertext
+  memcpy(modified_ciphertext, ciphertext, ciphertext_len);
+  memset(modified_ciphertext+blockSize, 0, blockSize);
+  memcpy(modified_ciphertext+blockSize*2, modified_ciphertext, blockSize);
+
+  // Receiver: decrypt ciphertext
+  plaintext_len = decryptCbc(modified_ciphertext, ciphertext_len, key, iv, (unsigned char *)plaintext);
   plaintext[plaintext_len] = '\0';
 
-  //cout << plaintext << endl;
-  cout << "Admin: " << (strstr(plaintext, ";admin=true;") ? "true" : "false") << endl;
+  unsigned char recovered_key[16];
+  if (!ascii_compliant(plaintext)) {
+    cout << "Error, plaintext is not ascii compliant!!" << endl << "<plaintext output>" << endl;
+    // Attacker:
+    doXor(recovered_key, (unsigned char *)plaintext, (unsigned char *)plaintext+blockSize*2, blockSize);
+    cout << "Key recovered! Decrypted plaintext:" << endl;
+    plaintext_len = decryptCbc(ciphertext, ciphertext_len, recovered_key, recovered_key, (unsigned char *)plaintext);
+    plaintext[plaintext_len] = '\0';
+    cout << plaintext << endl;
+  } else {
+    cout << plaintext << endl;
+  }
 
   close_openssl();
 }

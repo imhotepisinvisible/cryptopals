@@ -52,7 +52,7 @@ int main() {
 
   // Craft input: aaaaa:admin<true
   ciphertext_len = encryption_oracle(ciphertext, plaintext);
-  //bytesToHex(ciphertext, ciphertext_len, cipherHex);
+  //bytesToHex(cipherHex, ciphertext, ciphertext_len);
   //cout << cipherHex << endl;
 
   // Flip bits 48 and 96 in block 3 (out of 16*8 total)
