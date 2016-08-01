@@ -1,6 +1,6 @@
 INC=-I../../utils -I/usr/local/opt/openssl/include
 UTILS=../../utils/
-OBJ=main.o $(UTILS)conversions.o $(UTILS)utils.o $(UTILS)crypto.o
+OBJ=main.o $(UTILS)conversions.o $(UTILS)utils.o $(UTILS)crypto.o $(UTILS)sha1.o
 EXECUTABLE = a.out
 GCC = g++
 CFLAGS = -g -Wall -MMD

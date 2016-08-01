@@ -7,8 +7,11 @@
 
 #include "crypto.h"
 #include "utils.h"
+#include "sha1.h"
 
 using namespace std;
+
+const uint8_t SHA1_HASH_LEN = 20;
 
 void handleErrors(void)
 {
@@ -218,4 +221,51 @@ int decryptCtr(unsigned char *ciphertext, int ciphertext_len, unsigned char *key
 
 int encryptCtr(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *nonce, unsigned char *ciphertext) {
   return decryptCtr(plaintext, plaintext_len, key, nonce, ciphertext);
+}
+
+bool generate_secret_prefix_mac(const unsigned char *key, int key_len, const char *message, unsigned char *mac) {
+  bool ret = false;
+  SHA1Context sha;
+
+  SHA1Reset(&sha);
+  SHA1Input(&sha, key, key_len);
+  SHA1Input(&sha, (const unsigned char *)message, strlen(message));
+
+  if (!SHA1Result(&sha)) {
+    cout << "ERROR-- could not compute message digest" << endl;
+  }
+  else {
+    uint32_t bytes = 0;
+    for(int i = 0; i < 5 ; i++) {
+      bytes = htonl(sha.Message_Digest[i]);
+      memcpy(mac+i*4, (unsigned char *)&bytes, sizeof(uint32_t));
+    }
+    ret = true;
+  }
+
+  return ret;
+}
+
+bool authenticate_secret_prefix_mac(const unsigned char *key, int key_len, const char *message, const unsigned char *mac) {
+  bool ret = false;
+  SHA1Context sha;
+
+  SHA1Reset(&sha);
+  SHA1Input(&sha, key, key_len);
+  SHA1Input(&sha, (const unsigned char *)message, strlen(message));
+
+  if (!SHA1Result(&sha)) {
+    cout << "ERROR-- could not compute message digest" << endl;
+  }
+  else {
+    uint32_t passed_digest[5];
+    for(int i = 0; i < 5 ; i++) {
+      passed_digest[i] = ntohl(*((uint32_t *)mac+i));
+    }
+    if (0 == CRYPTO_memcmp((uint8_t *)passed_digest, (uint8_t *)sha.Message_Digest, SHA1_HASH_LEN)) {
+      ret = true;
+    }
+  }
+
+  return ret;
 }
