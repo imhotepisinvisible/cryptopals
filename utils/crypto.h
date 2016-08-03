@@ -2,6 +2,7 @@
 #define CRYPTO_H
 
 extern const uint8_t SHA1_HASH_LEN;
+extern const uint8_t MD4_HASH_LEN;
 
 int encryptEcb(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *ciphertext, bool disablePadding);
 
@@ -20,6 +21,13 @@ bool generate_secret_prefix_mac(const unsigned char *key, const int key_len, con
 bool authenticate_secret_prefix_mac(const unsigned char *key, const int key_len, const char *message, const unsigned char *mac);
 
 bool authenticate_secret_prefix_mac(const unsigned char *key, const int key_len, const unsigned char *message, const int message_len, const unsigned char *mac);
+
+bool generate_secret_prefix_mac_md4(const unsigned char *key, const int key_len, const char *message, unsigned char *mac);
+
+bool authenticate_secret_prefix_mac_md4(const unsigned char *key, const int key_len, const char *message, const unsigned char *mac);
+
+bool authenticate_secret_prefix_mac_md4(const unsigned char *key, const int key_len, const unsigned char *message, const int message_len, const unsigned char *mac);
+
 
 void init_openssl();
 

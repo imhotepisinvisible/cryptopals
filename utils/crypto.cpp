@@ -8,10 +8,12 @@
 #include "crypto.h"
 #include "utils.h"
 #include "sha1.h"
+#include "md4.h"
 
 using namespace std;
 
 const uint8_t SHA1_HASH_LEN = 20;
+const uint8_t MD4_HASH_LEN = 16;
 
 void handleErrors(void)
 {
@@ -269,6 +271,41 @@ bool authenticate_secret_prefix_mac(const unsigned char *key, const int key_len,
     if (0 == CRYPTO_memcmp((uint8_t *)passed_digest, (uint8_t *)sha.Message_Digest, SHA1_HASH_LEN)) {
       ret = true;
     }
+  }
+
+  return ret;
+}
+
+bool generate_secret_prefix_mac_md4(const unsigned char *key, const int key_len, const char *message, unsigned char *mac) {
+  bool ret = false;
+  MD4_CTX md4;
+
+  MD4_Init(&md4);
+  MD4_Update(&md4, key, key_len);
+  MD4_Update(&md4, (const unsigned char *)message, strlen(message));
+
+  MD4_Final(mac, &md4);
+  ret = true;
+
+  return ret;
+}
+
+bool authenticate_secret_prefix_mac_md4(const unsigned char *key, const int key_len, const char *message, const unsigned char *mac) {
+  return authenticate_secret_prefix_mac_md4(key, key_len, (unsigned char *)message, strlen(message), mac);
+}
+
+bool authenticate_secret_prefix_mac_md4(const unsigned char *key, const int key_len, const unsigned char *message, const int message_len, const unsigned char *mac) {
+  bool ret = false;
+  unsigned char calculated_mac[MD4_HASH_LEN];
+  MD4_CTX md4;
+
+  MD4_Init(&md4);
+  MD4_Update(&md4, key, key_len);
+  MD4_Update(&md4, message, message_len);
+
+  MD4_Final(calculated_mac, &md4);
+  if (0 == CRYPTO_memcmp(mac, calculated_mac, MD4_HASH_LEN)) {
+    ret = true;
   }
 
   return ret;
