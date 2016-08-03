@@ -15,9 +15,11 @@ int decryptCtr(unsigned char *ciphertext, int ciphertext_len, unsigned char *key
 
 int encryptCtr(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *nonce, unsigned char *ciphertext);
 
-bool generate_secret_prefix_mac(const unsigned char *key, int key_len, const char *message, unsigned char *mac);
+bool generate_secret_prefix_mac(const unsigned char *key, const int key_len, const char *message, unsigned char *mac);
 
-bool authenticate_secret_prefix_mac(const unsigned char *key, int key_len, const char *message, const unsigned char *mac);
+bool authenticate_secret_prefix_mac(const unsigned char *key, const int key_len, const char *message, const unsigned char *mac);
+
+bool authenticate_secret_prefix_mac(const unsigned char *key, const int key_len, const unsigned char *message, const int message_len, const unsigned char *mac);
 
 void init_openssl();
 

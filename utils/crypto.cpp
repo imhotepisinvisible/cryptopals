@@ -223,7 +223,7 @@ int encryptCtr(unsigned char *plaintext, int plaintext_len, unsigned char *key, 
   return decryptCtr(plaintext, plaintext_len, key, nonce, ciphertext);
 }
 
-bool generate_secret_prefix_mac(const unsigned char *key, int key_len, const char *message, unsigned char *mac) {
+bool generate_secret_prefix_mac(const unsigned char *key, const int key_len, const char *message, unsigned char *mac) {
   bool ret = false;
   SHA1Context sha;
 
@@ -246,13 +246,17 @@ bool generate_secret_prefix_mac(const unsigned char *key, int key_len, const cha
   return ret;
 }
 
-bool authenticate_secret_prefix_mac(const unsigned char *key, int key_len, const char *message, const unsigned char *mac) {
+bool authenticate_secret_prefix_mac(const unsigned char *key, const int key_len, const char *message, const unsigned char *mac) {
+  return authenticate_secret_prefix_mac(key, key_len, (unsigned char *)message, strlen(message), mac);
+}
+
+bool authenticate_secret_prefix_mac(const unsigned char *key, const int key_len, const unsigned char *message, const int message_len, const unsigned char *mac) {
   bool ret = false;
   SHA1Context sha;
 
   SHA1Reset(&sha);
   SHA1Input(&sha, key, key_len);
-  SHA1Input(&sha, (const unsigned char *)message, strlen(message));
+  SHA1Input(&sha, message, message_len);
 
   if (!SHA1Result(&sha)) {
     cout << "ERROR-- could not compute message digest" << endl;

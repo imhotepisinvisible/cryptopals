@@ -12,8 +12,8 @@ using namespace std;
 int main() {
   unsigned char mac[SHA1_HASH_LEN];
   char macHex[SHA1_HASH_LEN*2+1];
-  const char key[] = "YELLOW SUBMARINE";
-  const char message[] = "Hello World!";
+  const char *key = "YELLOW SUBMARINE";
+  const char *message = "Hello World!";
 
   if (!generate_secret_prefix_mac((unsigned char *)key, strlen(key), message, mac)) {
     cout << "Error generating MAC" << endl;
