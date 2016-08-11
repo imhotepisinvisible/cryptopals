@@ -8,6 +8,7 @@ public:
   BIGNUM *get_pub();
   BIGNUM *get_p();
   BIGNUM *get_g();
+  void set_g(const char *g_str);
   void set_recipient_pub(BIGNUM *_B);
   int encrypt(const char *plaintext, unsigned char *iv, unsigned char *ciphertext);
   int decrypt(unsigned char *ciphertext, const int ciphertext_len, unsigned char *iv, char *plaintext);

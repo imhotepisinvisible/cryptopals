@@ -54,6 +54,17 @@ BIGNUM *Person::get_g() {
   return g;
 }
 
+void Person::set_g(const char *g_str) {
+  if (g) BN_free(g);
+  g = NULL;
+  BN_hex2bn(&g, g_str);
+
+  // Recalculate keys
+  if (a) BN_free(a);
+  if (A) BN_free(A);
+  set_keys();
+}
+
 void Person::set_recipient_pub(BIGNUM *_B) {
   B = BN_dup(_B);
   calculate_hash();
