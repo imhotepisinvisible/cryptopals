@@ -3,6 +3,7 @@
 
 extern const uint8_t SHA1_HASH_LEN;
 extern const uint8_t MD4_HASH_LEN;
+extern const uint8_t SHA256_HASH_LEN;
 
 int encryptEcb(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *ciphertext, bool disablePadding);
 

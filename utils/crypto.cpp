@@ -14,6 +14,7 @@ using namespace std;
 
 const uint8_t SHA1_HASH_LEN = 20;
 const uint8_t MD4_HASH_LEN = 16;
+const uint8_t SHA256_HASH_LEN = 32;
 
 void handleErrors(void)
 {
