@@ -311,3 +311,117 @@ bool authenticate_secret_prefix_mac_md4(const unsigned char *key, const int key_
 
   return ret;
 }
+
+void RSA_genkeys(RSAKey **priv, RSAKey **pub) {
+  BIGNUM *p = NULL;
+  BIGNUM *q = NULL;
+  BIGNUM *n = NULL;
+  BIGNUM *et = NULL;
+  BIGNUM *e = NULL;
+  BIGNUM *d = NULL;
+  BN_CTX *ctx = NULL;
+  
+  // Generate 2 random primes. We'll use small numbers to start, so you can just pick them out of a prime table. Call them "p" and "q".
+  if (!(p = BN_new()))
+    goto err;
+  
+  if (!BN_generate_prime_ex(p, 512, 0, NULL, NULL, NULL))
+    goto err;
+  
+  if (!(q = BN_new()))
+    goto err;
+  
+  if (!BN_generate_prime_ex(q, 512, 0, NULL, NULL, NULL))
+    goto err;
+
+  // Let n be p * q. Your RSA math is modulo n.
+  if (!(n = BN_new()))
+    goto err;
+  
+  if (!(ctx = BN_CTX_new()))
+    goto err;
+  
+  if (!BN_mul(n, p, q, ctx))
+    goto err;
+  
+  // Let et be (p-1)*(q-1) (the "totient"). You need this value only for keygen.
+  if (!(et = BN_new()))
+    goto err;
+  
+  if (!BN_sub_word(p, 1))
+    goto err;
+  
+  if (!BN_sub_word(q, 1))
+    goto err;
+  
+  if (!BN_mul(et, p, q, ctx))
+    goto err;
+  
+  // Let e be 3.
+  if (!BN_hex2bn(&e, "3"))
+    goto err;
+  
+  // Compute d = invmod(e, et). invmod(17, 3120) is 2753.
+  if (!(d = BN_new()))
+    goto err;
+
+  // TODO: write this function instead of using library function
+  if (!BN_mod_inverse(d, e, et, ctx))
+    goto err;
+  
+  // Your public key is [e, n]. Your private key is [d, n].
+  *priv = new RSAKey(d, n);
+  *pub = new RSAKey(e, n);
+
+ err:
+  if (p) BN_free(p);
+  if (q) BN_free(q);
+  if (n) BN_free(n);
+  if (et) BN_free(et);
+  if (e) BN_free(e);
+  if (d) BN_free(d);
+}
+
+BIGNUM *RSA_encrypt(const RSAKey *pub, const char *plaintext) {
+  BIGNUM *m = NULL;
+  BIGNUM *c = NULL;
+  BN_CTX *ctx = NULL;
+
+  if (!(m = BN_new()))
+    goto err;
+  
+  if (!BN_bin2bn((unsigned char *)plaintext, strlen(plaintext), m))
+    goto err;
+  
+  if (!(c = BN_new()))
+    goto err;
+  
+  if (!(ctx = BN_CTX_new()))
+    goto err;
+  
+  if (!BN_mod_exp(c, m, pub->e_or_d, pub->n, ctx))
+    goto err;
+
+ err:
+  if (m) BN_free(m);
+  if (ctx) BN_CTX_free(ctx);
+  return c;
+}
+
+char *RSA_decrypt(const RSAKey *priv, const BIGNUM *ciphertext) {
+  BIGNUM *m = BN_new();
+  BN_CTX *ctx = BN_CTX_new();
+  unsigned char *plaintext = NULL;
+  BN_mod_exp(m, ciphertext, priv->e_or_d, priv->n, ctx);
+
+  plaintext = new unsigned char[BN_num_bytes(m)];
+  if (!BN_bn2bin(m, plaintext))
+    goto err;
+
+  plaintext[BN_num_bytes(m)] = '\0';
+
+ err:
+  if (ctx) BN_CTX_free(ctx);
+
+  return (char *)plaintext;
+}

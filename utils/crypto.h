@@ -1,9 +1,24 @@
 #ifndef CRYPTO_H
 #define CRYPTO_H
 
+#include <openssl/bn.h>
+
 extern const uint8_t SHA1_HASH_LEN;
 extern const uint8_t MD4_HASH_LEN;
 extern const uint8_t SHA256_HASH_LEN;
+
+struct RSAKey {
+  BIGNUM *e_or_d;
+  BIGNUM *n;
+  RSAKey(const BIGNUM *_e_or_d, const BIGNUM *_n) {
+    e_or_d = BN_dup(_e_or_d);
+    n = BN_dup(_n);
+  }
+  ~RSAKey() {
+    if (e_or_d) BN_free(e_or_d);
+    if (n) BN_free(n);
+  }
+};
 
 int encryptEcb(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *ciphertext, bool disablePadding);
 
@@ -29,6 +44,11 @@ bool authenticate_secret_prefix_mac_md4(const unsigned char *key, const int key_
 
 bool authenticate_secret_prefix_mac_md4(const unsigned char *key, const int key_len, const unsigned char *message, const int message_len, const unsigned char *mac);
 
+void RSA_genkeys(RSAKey **priv, RSAKey **pub);
+
+BIGNUM *RSA_encrypt(const RSAKey *pub, const char *plaintext);
+
+char *RSA_decrypt(const RSAKey *priv, const BIGNUM *ciphertext);
 
 void init_openssl();
 
