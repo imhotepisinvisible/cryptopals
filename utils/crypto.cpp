@@ -312,7 +312,138 @@ bool authenticate_secret_prefix_mac_md4(const unsigned char *key, const int key_
   return ret;
 }
 
-void RSA_genkeys(RSAKey **priv, RSAKey **pub) {
+int egcd(const BIGNUM *a, const BIGNUM *n, BIGNUM *g, BIGNUM *x, BIGNUM *y, BN_CTX *ctx) {
+  int ret = 0;
+
+  BIGNUM *x0 = NULL;
+  BIGNUM *x1 = NULL;
+  BIGNUM *y0 = NULL;
+  BIGNUM *y1 = NULL;
+  BIGNUM *q = NULL;
+  BIGNUM *tmp = NULL;
+  BIGNUM *tmp_n = NULL;
+  BN_CTX_start(ctx);
+  
+  if (!(x0 = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!(x1 = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!(y0 = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!(y1 = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!(q = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!(tmp = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!(tmp_n = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!BN_one(x0))
+    goto err;
+  
+  if (!BN_zero(x1))
+    goto err;
+  
+  if (!BN_zero(y0))
+    goto err;
+  
+  if (!BN_one(y1))
+    goto err;
+  
+  if (!BN_copy(g, a))
+    goto err;
+  
+  if (!BN_copy(tmp_n, n))
+    goto err;
+
+  while (!BN_is_zero(tmp_n)) {
+    if (!BN_copy(tmp, tmp_n))
+      goto err;
+  
+    if (!BN_div(q, tmp_n, g, tmp_n, ctx))
+      goto err;
+  
+    if (!BN_copy(g, tmp))
+      goto err;
+
+    if (!BN_copy(tmp, x1))
+      goto err;
+  
+    if (!BN_mul(x1, q, x1, ctx))
+      goto err;
+  
+    if (!BN_sub(x1, x0, x1))
+      goto err;
+  
+    if (!BN_copy(x0, tmp))
+      goto err;
+
+    if (!BN_copy(tmp, y1))
+      goto err;
+  
+    if (!BN_mul(y1, q, y1, ctx))
+      goto err;
+  
+    if (!BN_sub(y1, y0, y1))
+      goto err;
+  
+    if (!BN_copy(y0, tmp))
+      goto err;
+  }
+
+  if (!BN_copy(x, x0))
+    goto err;
+  
+  if (!BN_copy(y, y0))
+    goto err;
+  
+  ret = 1;
+
+ err:
+  BN_CTX_end(ctx);
+  return ret;
+}
+
+BIGNUM *modinv(const BIGNUM *a, const BIGNUM *n, BN_CTX *ctx) {
+  BIGNUM *ret = NULL;
+  BIGNUM *g = NULL;
+  BIGNUM *x = NULL;
+  BIGNUM *y = NULL;
+  BN_CTX_start(ctx);
+  
+  if (!(g = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!(x = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!(y = BN_CTX_get(ctx)))
+    goto err;
+
+  if (!egcd(a, n, g, x, y, ctx))
+    goto err;
+  
+  if (BN_is_one(g)) {
+    if (!(ret = BN_new()))
+      goto err;
+      
+    if (!BN_nnmod(ret, x, n, ctx))
+      goto err;
+  }
+
+ err:
+  BN_CTX_end(ctx);
+  return ret;
+}
+
+void RSA_genkeys(RSAKey **priv, RSAKey **pub, const int keylen) {
   BIGNUM *p = NULL;
   BIGNUM *q = NULL;
   BIGNUM *n = NULL;
@@ -325,13 +456,13 @@ void RSA_genkeys(RSAKey **priv, RSAKey **pub) {
   if (!(p = BN_new()))
     goto err;
   
-  if (!BN_generate_prime_ex(p, 512, 0, NULL, NULL, NULL))
+  if (!BN_generate_prime_ex(p, keylen, 0, NULL, NULL, NULL))
     goto err;
   
   if (!(q = BN_new()))
     goto err;
   
-  if (!BN_generate_prime_ex(q, 512, 0, NULL, NULL, NULL))
+  if (!BN_generate_prime_ex(q, keylen, 0, NULL, NULL, NULL))
     goto err;
 
   // Let n be p * q. Your RSA math is modulo n.
@@ -362,13 +493,9 @@ void RSA_genkeys(RSAKey **priv, RSAKey **pub) {
     goto err;
   
   // Compute d = invmod(e, et). invmod(17, 3120) is 2753.
-  if (!(d = BN_new()))
-    goto err;
+  if (!(d = modinv(e, et, ctx)))
+      goto err;
 
-  // TODO: write this function instead of using library function
-  if (!BN_mod_inverse(d, e, et, ctx))
-    goto err;
-  
   // Your public key is [e, n]. Your private key is [d, n].
   *priv = new RSAKey(d, n);
   *pub = new RSAKey(e, n);

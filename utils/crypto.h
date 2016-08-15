@@ -44,7 +44,9 @@ bool authenticate_secret_prefix_mac_md4(const unsigned char *key, const int key_
 
 bool authenticate_secret_prefix_mac_md4(const unsigned char *key, const int key_len, const unsigned char *message, const int message_len, const unsigned char *mac);
 
-void RSA_genkeys(RSAKey **priv, RSAKey **pub);
+BIGNUM *modinv(const BIGNUM *a, const BIGNUM *n, BN_CTX *ctx);
+
+void RSA_genkeys(RSAKey **priv, RSAKey **pub, const int keylen);
 
 BIGNUM *RSA_encrypt(const RSAKey *pub, const char *plaintext);
 
