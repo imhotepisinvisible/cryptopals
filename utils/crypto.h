@@ -52,6 +52,8 @@ BIGNUM *RSA_encrypt(const RSAKey *pub, const char *plaintext);
 
 char *RSA_decrypt(const RSAKey *priv, const BIGNUM *ciphertext);
 
+BIGNUM *RSA_decrypt_toBN(const RSAKey *priv, const BIGNUM *ciphertext);
+
 void init_openssl();
 
 void close_openssl();

@@ -536,10 +536,11 @@ BIGNUM *RSA_encrypt(const RSAKey *pub, const char *plaintext) {
 }
 
 char *RSA_decrypt(const RSAKey *priv, const BIGNUM *ciphertext) {
-  BIGNUM *m = BN_new();
-  BN_CTX *ctx = BN_CTX_new();
+  BIGNUM *m = NULL;
   unsigned char *plaintext = NULL;
-  BN_mod_exp(m, ciphertext, priv->e_or_d, priv->n, ctx);
+
+  if (!(m = RSA_decrypt_toBN(priv, ciphertext)))
+      goto err;
 
   plaintext = new unsigned char[BN_num_bytes(m)];
   if (!BN_bn2bin(m, plaintext))
@@ -548,7 +549,20 @@ char *RSA_decrypt(const RSAKey *priv, const BIGNUM *ciphertext) {
   plaintext[BN_num_bytes(m)] = '\0';
 
  err:
-  if (ctx) BN_CTX_free(ctx);
+  if (m) BN_free(m);
 
   return (char *)plaintext;
+}
+
+BIGNUM *RSA_decrypt_toBN(const RSAKey *priv, const BIGNUM *ciphertext) {
+  BIGNUM *m = BN_new();
+  BN_CTX *ctx = BN_CTX_new();
+
+  if (!BN_mod_exp(m, ciphertext, priv->e_or_d, priv->n, ctx))
+    goto err;
+
+ err:
+  if (ctx) BN_CTX_free(ctx);
+
+  return m;
 }
