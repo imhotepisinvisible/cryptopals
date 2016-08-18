@@ -509,16 +509,9 @@ void RSA_genkeys(RSAKey **priv, RSAKey **pub, const int keylen) {
   if (d) BN_free(d);
 }
 
-BIGNUM *RSA_encrypt(const RSAKey *pub, const char *plaintext) {
-  BIGNUM *m = NULL;
+BIGNUM *RSA_encrypt(const RSAKey *pub, const BIGNUM *m) {
   BIGNUM *c = NULL;
   BN_CTX *ctx = NULL;
-
-  if (!(m = BN_new()))
-    goto err;
-  
-  if (!BN_bin2bn((unsigned char *)plaintext, strlen(plaintext), m))
-    goto err;
   
   if (!(c = BN_new()))
     goto err;
@@ -530,9 +523,30 @@ BIGNUM *RSA_encrypt(const RSAKey *pub, const char *plaintext) {
     goto err;
 
  err:
-  if (m) BN_free(m);
   if (ctx) BN_CTX_free(ctx);
   return c;
+}
+
+BIGNUM *RSA_encrypt(const RSAKey *pub, const unsigned char *plaintext, const int plaintext_len) {
+  BIGNUM *m = NULL;
+  BIGNUM *c = NULL;
+
+  if (!(m = BN_new()))
+    goto err;
+
+  if (!BN_bin2bn(plaintext, plaintext_len, m))
+    goto err;
+
+  c = RSA_encrypt(pub, m);
+
+ err:
+  if (m) BN_free(m);
+
+  return c;
+}
+
+BIGNUM *RSA_encrypt(const RSAKey *pub, const char *plaintext) {
+  return RSA_encrypt(pub, (unsigned char *)plaintext, strlen(plaintext));
 }
 
 char *RSA_decrypt(const RSAKey *priv, const BIGNUM *ciphertext) {
@@ -565,4 +579,88 @@ BIGNUM *RSA_decrypt_toBN(const RSAKey *priv, const BIGNUM *ciphertext) {
   if (ctx) BN_CTX_free(ctx);
 
   return m;
+}
+
+BIGNUM *RSA_sign(const RSAKey *priv, const unsigned char *hash, const int hash_len) {
+  BIGNUM *h = NULL;
+  BIGNUM *sig = NULL;
+
+  if (!(h = BN_new()))
+    goto err;
+
+  if (!BN_bin2bn(hash, hash_len, h))
+    goto err;
+
+  sig = RSA_decrypt_toBN(priv, h);
+
+ err:
+  if (h) BN_free(h);
+
+  return sig;
+}
+
+bool RSA_verify(const RSAKey *pub, const BIGNUM *sig, const unsigned char *hash, const int hash_len) {
+  bool ret = false;
+  BIGNUM *h = NULL;
+  BIGNUM *calculated_hash = NULL;
+
+  if (!(h = BN_new()))
+    goto err;
+
+  if (!BN_bin2bn(hash, hash_len, h))
+    goto err;
+
+  calculated_hash = RSA_encrypt(pub, sig);
+
+  ret = (BN_cmp(calculated_hash, h) == 0);
+
+ err:
+  if (h) BN_free(h);
+  if (calculated_hash) BN_free(calculated_hash);
+
+  return ret;
+}
+
+// https://github.com/androidrbox/aftv-full-unlock/blob/master/jni/aftv-full-unlock.c
+BIGNUM *nearest_cuberoot(BIGNUM *in, BN_CTX *ctx) {
+  BN_CTX_start(ctx);
+
+  BIGNUM *three = BN_CTX_get(ctx);
+  BIGNUM *high = BN_CTX_get(ctx);
+  BIGNUM *mid = BN_CTX_get(ctx);
+  BIGNUM *low = BN_CTX_get(ctx);
+  BIGNUM *tmp = BN_CTX_get(ctx);
+
+  BN_set_word(three, 3); // Create the constant 3
+  BN_set_word(high, 1); // high = 1
+
+  do {
+    BN_lshift1(high, high); // high = high << 1 (high * 2)
+    BN_exp(tmp, high, three, ctx); // tmp = high^3
+  } while (BN_ucmp(tmp, in) <= -1); // while (tmp < in)
+
+  BN_rshift1(low, high); // low = high >> 1 (high / 2)
+
+  while (BN_ucmp(low, high) <= -1) { // while (low < high)
+    BN_add(tmp, low, high); // tmp = low + high
+    BN_rshift1(mid, tmp); // mid = tmp >> 1 (tmp / 2)
+    BN_exp(tmp, mid, three, ctx); // tmp = mid^3
+    if (BN_ucmp(low, mid) <= -1 && BN_ucmp(tmp, in) <= -1) { // if (low < mid && tmp < in)
+      BN_copy(low, mid); // low = mid
+    } else if (BN_ucmp(high, mid) >= 1 && BN_ucmp(tmp, in) >= 1) { // else if (high > mid && tmp > in)
+      BN_copy(high, mid); // high = mid
+    } else {
+      // subtract 1 from mid because 1 will be added after the loop
+      BN_sub_word(mid, 1); // mid -= 1
+      break;
+    }
+  }
+
+  BN_add_word(mid, 1); // mid += 1
+
+  BIGNUM *result = BN_dup(mid);
+
+  BN_CTX_end(ctx);
+
+  return result;
 }

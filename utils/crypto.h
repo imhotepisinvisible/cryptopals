@@ -50,9 +50,17 @@ void RSA_genkeys(RSAKey **priv, RSAKey **pub, const int keylen);
 
 BIGNUM *RSA_encrypt(const RSAKey *pub, const char *plaintext);
 
+BIGNUM *RSA_encrypt(const RSAKey *pub, const BIGNUM *m);
+
 char *RSA_decrypt(const RSAKey *priv, const BIGNUM *ciphertext);
 
 BIGNUM *RSA_decrypt_toBN(const RSAKey *priv, const BIGNUM *ciphertext);
+
+BIGNUM *RSA_sign(const RSAKey *priv, const unsigned char *hash, const int hash_len);
+
+bool RSA_verify(const RSAKey *pub, const BIGNUM *sig, const unsigned char *hash, const int hash_len);
+
+BIGNUM *nearest_cuberoot(BIGNUM *in, BN_CTX *ctx);
 
 void init_openssl();
 
