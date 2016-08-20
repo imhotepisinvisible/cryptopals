@@ -20,6 +20,19 @@ struct RSAKey {
   }
 };
 
+struct DSASig {
+  BIGNUM *r;
+  BIGNUM *s;
+  DSASig() {
+    r = BN_new();
+    s = BN_new();
+  }
+  ~DSASig() {
+    if (r) BN_free(r);
+    if (s) BN_free(s);
+  }
+};
+
 int encryptEcb(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *ciphertext, bool disablePadding);
 
 int decryptEcb(unsigned char *ciphertext, int ciphertext_len, unsigned char *key, unsigned char *plaintext, bool disablePadding);
@@ -61,6 +74,14 @@ BIGNUM *RSA_sign(const RSAKey *priv, const unsigned char *hash, const int hash_l
 bool RSA_verify(const RSAKey *pub, const BIGNUM *sig, const unsigned char *hash, const int hash_len);
 
 BIGNUM *nearest_cuberoot(BIGNUM *in, BN_CTX *ctx);
+
+void DSA_genkeys(BIGNUM **x, BIGNUM **y);
+
+DSASig *DSA_sign(const BIGNUM *x, const unsigned char *hash, const int hash_len, BIGNUM *k = NULL);
+
+bool DSA_verify(const BIGNUM *y, const DSASig *sig, const unsigned char *hash, const int hash_len);
+
+BIGNUM *find_x(const DSASig *sig, const BIGNUM *k, const unsigned char *hash, const int hash_len, BN_CTX *ctx);
 
 void init_openssl();
 
