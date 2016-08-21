@@ -128,7 +128,7 @@ int main() {
   if (!(m = nearest_cuberoot(result, ctx)))
     goto err;
 
-  plaintext = new unsigned char[BN_num_bytes(m)];
+  plaintext = new unsigned char[BN_num_bytes(m)+1];
   if (!BN_bn2bin(m, plaintext))
     goto err;
 

@@ -50,7 +50,7 @@ int main() {
   if (!BN_mod_mul(plaintext, plaintext, Smodinv, pub->n, ctx))
     goto err;
 
-  plaintext_str = new unsigned char[BN_num_bytes(plaintext)];
+  plaintext_str = new unsigned char[BN_num_bytes(plaintext)+1];
   BN_bn2bin(plaintext, plaintext_str);
       
   plaintext_str[BN_num_bytes(plaintext)] = '\0';

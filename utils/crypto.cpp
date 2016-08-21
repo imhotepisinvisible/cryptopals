@@ -556,7 +556,7 @@ char *RSA_decrypt(const RSAKey *priv, const BIGNUM *ciphertext) {
   if (!(m = RSA_decrypt_toBN(priv, ciphertext)))
       goto err;
 
-  plaintext = new unsigned char[BN_num_bytes(m)];
+  plaintext = new unsigned char[BN_num_bytes(m)+1];
   if (!BN_bn2bin(m, plaintext))
     goto err;
 
