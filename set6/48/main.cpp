@@ -2,6 +2,7 @@
 
 #include "crypto.h"
 #include "conversions.h"
+#include "interval_union.h"
 
 using namespace std;
 
@@ -12,8 +13,6 @@ BIGNUM *three = NULL;
 BIGNUM *B2 = NULL;
 BIGNUM *B3 = NULL;
 BIGNUM *B3minus1 = NULL;
-
-typedef std::pair<BIGNUM *, BIGNUM *> Interval;
 
 bool pkcs1_oracle(const RSAKey *priv, const BIGNUM *ciphertext) {
   bool ret = false;
@@ -169,20 +168,21 @@ void find_interval(const BIGNUM *n, const BIGNUM *s, const BIGNUM *r, const BIGN
   BN_CTX_end(ctx);
 }
 
-void step3(const BIGNUM *n, const BIGNUM *s, const Interval &Mminus1, Interval &M, BN_CTX *ctx) {
+void step3(const BIGNUM *n, const BIGNUM *s, const IntervalUnion &Mminus1, const int interval_num, IntervalUnion &M, BN_CTX *ctx) {
   BN_CTX_start(ctx);
   
   // Calc upper and lower bounds for r
+  Interval inter = Mminus1.get_interval(interval_num);
   BIGNUM *LBr = BN_CTX_get(ctx);
   BIGNUM *UBr = BN_CTX_get(ctx);
   BIGNUM *rem = BN_CTX_get(ctx);
-  BN_mul(LBr, Mminus1.first, s, ctx);
+  BN_mul(LBr, inter.first, s, ctx);
   BN_sub(LBr, LBr, B3);
   BN_add(LBr, LBr, BN_value_one());
   BN_div(LBr, rem, LBr, n, ctx);
   ceiling(LBr, rem);
 
-  BN_mul(UBr, Mminus1.second, s, ctx);
+  BN_mul(UBr, inter.second, s, ctx);
   BN_sub(UBr, UBr, B2);
   BN_div(UBr, NULL, UBr, n, ctx);
 
@@ -190,35 +190,17 @@ void step3(const BIGNUM *n, const BIGNUM *s, const Interval &Mminus1, Interval &
   BN_copy(r, LBr);
   BIGNUM *LBunion = BN_CTX_get(ctx);
   BIGNUM *UBunion = BN_CTX_get(ctx);
-  BIGNUM *LB = BN_CTX_get(ctx);
-  BIGNUM *UB = BN_CTX_get(ctx);
-  Interval newM(NULL, NULL);
   if (BN_cmp(LBr, UBr) <= 0) {
     do {
-      find_interval(n, s, r, Mminus1.first, Mminus1.second, LBunion, UBunion, ctx);
+      find_interval(n, s, r, inter.first, inter.second, LBunion, UBunion, ctx);
     
-      BN_max(LB, Mminus1.first, LBunion);
-      BN_min(UB, Mminus1.second, UBunion);
-
-      // Instead of handling multiple ranges, set the lower bound
-      // to be the bottom of the first range, and the upper bound
-      // to be the bottom of the second range.  This *significantly*
-      // increases the processing time and probably doesn't really work,
-      // but "Your Step 3 code is probably not going to need to handle
-      // multiple ranges." so...
-      if (newM.first || newM.second) {
-	BN_min(LB, newM.first, LB);
-	BN_max(UB, newM.second, UB);
-      }
-      
-      newM.first = BN_dup(LB);
-      newM.second = BN_dup(UB);
+      Interval new_inter(LBunion, UBunion);
+      M.add_interval(new_inter);
       
       BN_add(r, r, BN_value_one());
     } while (BN_cmp(r, UBr) <= 0);
   }
 
-  M = newM;
   BN_CTX_end(ctx);
 
   return;
@@ -230,7 +212,7 @@ int main() {
 
   const char *plaintext = "kick it, CC";
 
-  RSA_genkeys(&priv, &pub, 128);
+  RSA_genkeys(&priv, &pub, 384);
 
   // Construct valid padding
   int plaintext_block_len = BN_num_bytes(priv->n);
@@ -264,8 +246,10 @@ int main() {
   BN_sub(B3minus1, B3, BN_value_one());
   
   // Step 1: init
-  Interval M(B2, B3minus1);
-  Interval Mminus1;
+  IntervalUnion M;
+  IntervalUnion Mminus1;
+  Interval start(B2, B3minus1);
+  M.add_interval(start);
   int i = 1;
   BIGNUM *s = BN_dup(BN_value_one());
   BIGNUM *sminus1 = NULL;
@@ -287,38 +271,52 @@ int main() {
       BN_div(s, rem, pub->n, B3, ctx);
       ceiling(s, rem);
       find_s(pub, priv, ciphertext, s, ctx);
+    } else if (M.number_intervals() > 1) {
+      // Step 2.b: Searching with more than one interval left.
+      // Otherwise, if i > 1 and the number of intervals in
+      // M[i−1] is at least 2, then search for the smallest
+      // integer si > s[i−1], such that the ciphertext
+      // c0(si)**e mod n is PKCS conforming.
+      BN_add(s, s, BN_value_one());
+      find_s(pub, priv, ciphertext, s, ctx);
     } else {
       // Step 2.c
       sminus1 = BN_dup(s);
-      step2c(pub, priv, ciphertext, sminus1, M.first, M.second, s, ctx);
+      inter = M.get_interval(0);
+      step2c(pub, priv, ciphertext, sminus1, inter.first, inter.second, s, ctx);
     }
 
     // Step 3
     Mminus1 = M;
-    // Your Step 3 code is probably not going to need to handle multiple ranges.
-    // NOTE: this isn't strictly true, so this breaks sometimes
-    step3(pub->n, s, Mminus1, M, ctx);
+    M.clear();
+    // Loop the intervals in M[i-1]
+    for (int j = 0; j < Mminus1.number_intervals(); j++) {
+      step3(pub->n, s, Mminus1, j, M, ctx);
+    }
 
     // Step 4: Computing the solution. If Mi contains
     // only one interval of length 1 (i.e., Mi = {[a, a]}),
     // then set m <- a(s0)**−1 mod n, and return m as
     // solution of m==c**d (mod n).
     // Otherwise, set i <- i + 1 and go to step 2.
-    if (BN_cmp(M.first, M.second) == 0) {
-      cout << endl << "Plaintext found after " << i << " rounds:" << endl;
-      m = modinv(s0, pub->n, ctx);
-      BN_mod_mul(m, M.first, m, pub->n, ctx);
+    if (M.number_intervals() == 1) {
+      inter = M.get_interval(0);
+      if (BN_cmp(inter.first, inter.second) == 0) {
+	cout << endl << "Plaintext found after " << i << " rounds:" << endl;
+	m = modinv(s0, pub->n, ctx);
+	BN_mod_mul(m, inter.first, m, pub->n, ctx);
 	
-      // Remove padding
-      int padded_plaintext_len = BN_num_bytes(m);
-      padded_found_plaintext = new unsigned char[padded_plaintext_len+1];
-      BN_bn2bin(m, padded_found_plaintext);
-      padded_found_plaintext[padded_plaintext_len] = '\0';
-      unsigned char *found_plaintext = padded_found_plaintext;
-      found_plaintext++;
-      while (*(found_plaintext++) == 0xff);
-      cout << found_plaintext << endl;
-      break;
+	// Remove padding
+	int padded_plaintext_len = BN_num_bytes(m);
+	padded_found_plaintext = new unsigned char[padded_plaintext_len+1];
+	BN_bn2bin(m, padded_found_plaintext);
+	padded_found_plaintext[padded_plaintext_len] = '\0';
+	unsigned char *found_plaintext = padded_found_plaintext;
+	found_plaintext++;
+	while (*(found_plaintext++) == 0xff);
+	cout << found_plaintext << endl;
+	break;
+      }
     }
 
     i++;
