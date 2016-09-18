@@ -19,9 +19,7 @@ bool RSA_terrible_verify(const RSAKey *pub, const BIGNUM *sig, const char *msg) 
   unsigned char *calculated_hash = new unsigned char[calculated_hash_len];
   BN_bn2bin(calculated_hash_BN, calculated_hash);
 
-  // BN_bin2bn ignores leading 0s so for simplicity, assume
-  // calculated_hash had a leading 0
-  if (/*calculated_hash[0] == 0 &&*/ calculated_hash[0] == 1 && calculated_hash[1] == 0xff) {
+  if ((calculated_hash_len == (BN_num_bytes(pub->n) - 1)) && calculated_hash[0] == 1 && calculated_hash[1] == 0xff) {
     int i = 1;
     while (calculated_hash[i] == 0xff && i < (calculated_hash_len - 1 - 5 - SHA1_HASH_LEN)) {
       i++;

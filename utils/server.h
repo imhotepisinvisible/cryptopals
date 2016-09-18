@@ -1,3 +1,6 @@
+#ifndef SERVER_H
+#define SERVER_H
+
 #include <openssl/bn.h>
 
 class Server {
@@ -18,3 +21,5 @@ private:
   unsigned char *hmac;
   
 };
+
+#endif

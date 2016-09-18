@@ -63,6 +63,8 @@ void RSA_genkeys(RSAKey **priv, RSAKey **pub, const int keylen);
 
 BIGNUM *RSA_encrypt(const RSAKey *pub, const char *plaintext);
 
+BIGNUM *RSA_encrypt(const RSAKey *pub, const unsigned char *plaintext, const int plaintext_len);
+
 BIGNUM *RSA_encrypt(const RSAKey *pub, const BIGNUM *m);
 
 char *RSA_decrypt(const RSAKey *priv, const BIGNUM *ciphertext);

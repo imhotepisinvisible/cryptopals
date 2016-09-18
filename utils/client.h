@@ -1,3 +1,6 @@
+#ifndef CLIENT_H
+#define CLIENT_H
+
 #include <openssl/bn.h>
 
 class Client {
@@ -18,3 +21,5 @@ private:
   char *P;
   
 };
+
+#endif

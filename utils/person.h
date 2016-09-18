@@ -1,3 +1,6 @@
+#ifndef PERSON_H
+#define PERSON_H
+
 #include <openssl/bn.h>
 
 class Person {
@@ -25,3 +28,5 @@ private:
   unsigned char *calculate_hash();
   
 };
+
+#endif
