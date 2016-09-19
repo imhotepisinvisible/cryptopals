@@ -35,7 +35,7 @@ void close_openssl() {
   ERR_free_strings();
 }
 
-int encryptEcb(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *ciphertext, bool disablePadding)
+int encryptEcb(const unsigned char *plaintext, const int plaintext_len, const unsigned char *key, unsigned char *ciphertext, bool disablePadding)
 {
   EVP_CIPHER_CTX *ctx;
 
@@ -73,7 +73,7 @@ int encryptEcb(unsigned char *plaintext, int plaintext_len, unsigned char *key, 
   return ciphertext_len;
 }
 
-int decryptEcb(unsigned char *ciphertext, int ciphertext_len, unsigned char *key, unsigned char *plaintext, bool disablePadding)
+int decryptEcb(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *key, unsigned char *plaintext, bool disablePadding)
 {
   EVP_CIPHER_CTX *ctx;
 
@@ -112,7 +112,7 @@ int decryptEcb(unsigned char *ciphertext, int ciphertext_len, unsigned char *key
 }
 
 
-int encryptCbc(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *iv, unsigned char *ciphertext) {
+int encryptCbc(const unsigned char *plaintext, const int plaintext_len, const unsigned char *key, const unsigned char *iv, unsigned char *ciphertext) {
   int ciphertext_len = 0;
   int blockSize = 16;
   int noBlocks = plaintext_len/blockSize + 1;
@@ -148,7 +148,7 @@ int encryptCbc(unsigned char *plaintext, int plaintext_len, unsigned char *key, 
   return ciphertext_len;
 }
 
-int decryptCbc(unsigned char *ciphertext, int ciphertext_len, unsigned char *key, unsigned char *iv, unsigned char *plaintext) {
+int decryptCbc(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *key, const unsigned char *iv, unsigned char *plaintext) {
   int plaintext_len = 0;
   unsigned char *plaintext_start = plaintext;
   int blockSize = 16;
@@ -191,7 +191,7 @@ int decryptCbc(unsigned char *ciphertext, int ciphertext_len, unsigned char *key
   return plaintext_len;
 }
 
-int decryptCtr(unsigned char *ciphertext, int ciphertext_len, unsigned char *key, unsigned char *nonce, unsigned char *plaintext) {
+int decryptCtr(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *key, const unsigned char *nonce, unsigned char *plaintext) {
   int plaintext_len = 0;
   int blockSize = 16;
   int noBlocks = ciphertext_len/blockSize + (ciphertext_len%blockSize ? 1 : 0);
@@ -222,7 +222,7 @@ int decryptCtr(unsigned char *ciphertext, int ciphertext_len, unsigned char *key
   return plaintext_len;
 }
 
-int encryptCtr(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *nonce, unsigned char *ciphertext) {
+int encryptCtr(const unsigned char *plaintext, const int plaintext_len, const unsigned char *key, const unsigned char *nonce, unsigned char *ciphertext) {
   return decryptCtr(plaintext, plaintext_len, key, nonce, ciphertext);
 }
 

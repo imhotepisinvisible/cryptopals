@@ -33,17 +33,17 @@ struct DSASig {
   }
 };
 
-int encryptEcb(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *ciphertext, bool disablePadding);
+int encryptEcb(const unsigned char *plaintext, const int plaintext_len, const unsigned char *key, unsigned char *ciphertext, bool disablePadding);
 
-int decryptEcb(unsigned char *ciphertext, int ciphertext_len, unsigned char *key, unsigned char *plaintext, bool disablePadding);
+int decryptEcb(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *key, unsigned char *plaintext, bool disablePadding);
 
-int encryptCbc(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *iv, unsigned char *ciphertext);
+int encryptCbc(const unsigned char *plaintext, const int plaintext_len, const unsigned char *key, const unsigned char *iv, unsigned char *ciphertext);
 
-int decryptCbc(unsigned char *ciphertext, int ciphertext_len, unsigned char *key, unsigned char *iv, unsigned char *plaintext);
+int decryptCbc(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *key, const unsigned char *iv, unsigned char *plaintext);
 
-int decryptCtr(unsigned char *ciphertext, int ciphertext_len, unsigned char *key, unsigned char *nonce, unsigned char *plaintext);
+int decryptCtr(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *key, const unsigned char *nonce, unsigned char *plaintext);
 
-int encryptCtr(unsigned char *plaintext, int plaintext_len, unsigned char *key, unsigned char *nonce, unsigned char *ciphertext);
+int encryptCtr(const unsigned char *plaintext, const int plaintext_len, const unsigned char *key, const unsigned char *nonce, unsigned char *ciphertext);
 
 bool generate_secret_prefix_mac(const unsigned char *key, const int key_len, const char *message, unsigned char *mac);
 
