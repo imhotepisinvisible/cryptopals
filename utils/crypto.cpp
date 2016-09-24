@@ -15,6 +15,8 @@ using namespace std;
 const uint8_t SHA1_HASH_LEN = 20;
 const uint8_t MD4_HASH_LEN = 16;
 const uint8_t SHA256_HASH_LEN = 32;
+const uint16_t MD_MAGIC = 0xbeef;
+const uint32_t MD2_MAGIC = 0xdeadcafe;
 
 void handleErrors(void)
 {
@@ -998,4 +1000,63 @@ BIGNUM *find_x(const DSASig *sig, const BIGNUM *k, const unsigned char *hash, co
   BN_CTX_end(ctx);
   
   return x;
+}
+
+void md_internal(const char *M, const int M_len, const void *H, const int H_size, const bool pad, unsigned char *md) {
+  // Pad M to multiple of 16 - let's use PKCS7
+  int blockSize = 16;
+  int noBlocks = 0;
+  if (pad)
+    noBlocks = M_len/blockSize + 1;
+  else
+    noBlocks = M_len/blockSize + (M_len%blockSize ? 1 : 0);
+  unsigned char **blocks = new unsigned char*[noBlocks];
+  for (int i = 0; i < noBlocks; i++) {
+    blocks[i] = new unsigned char[blockSize];
+  }
+  breakIntoBlocks(blocks, (unsigned char *)M, noBlocks, blockSize);
+
+  // Add padding if required
+  if (pad) {
+    int padding = blockSize - (M_len%blockSize);
+    for(int i = blockSize-padding; i < blockSize; i++) {
+      blocks[noBlocks-1][i] = (unsigned char)padding;
+    }
+  }
+
+  // Pad H to 16 bytes
+  memcpy(md, H, H_size);
+  int padding = blockSize - (H_size%blockSize);
+  // Loop M in blocks
+  for (int i = 0; i < noBlocks; i++) {
+    for(int i = blockSize-padding; i < blockSize; i++) {
+      md[i] = (unsigned char)padding;
+    }
+  
+    encryptEcb(blocks[i], blockSize, md, md, true);
+  }
+
+  for (int i = 0; i < noBlocks; i++)
+    delete [] blocks[i];
+  delete [] blocks;
+}
+
+uint16_t md(const char *M, const int M_len, uint16_t H, const bool pad) {
+  unsigned char H_pad[16];
+  md_internal(M, M_len, &H, sizeof(H), pad, H_pad);
+  
+  // Strip H to 16 bits
+  memcpy(&H, H_pad, sizeof(H));
+
+  return H;
+}
+
+uint32_t md2(const char *M, const int M_len, uint32_t H, bool pad) {
+  unsigned char H_pad[16];
+  md_internal(M, M_len, &H, sizeof(H), pad, H_pad);
+  
+  // Strip H to 32 bits
+  memcpy(&H, H_pad, sizeof(H));
+
+  return H;
 }

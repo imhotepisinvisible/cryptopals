@@ -6,6 +6,8 @@
 extern const uint8_t SHA1_HASH_LEN;
 extern const uint8_t MD4_HASH_LEN;
 extern const uint8_t SHA256_HASH_LEN;
+extern const uint16_t MD_MAGIC;
+extern const uint32_t MD2_MAGIC;
 
 struct RSAKey {
   BIGNUM *e_or_d;
@@ -84,6 +86,10 @@ DSASig *DSA_sign(const BIGNUM *x, const unsigned char *hash, const int hash_len,
 bool DSA_verify(const BIGNUM *y, const DSASig *sig, const unsigned char *hash, const int hash_len);
 
 BIGNUM *find_x(const DSASig *sig, const BIGNUM *k, const unsigned char *hash, const int hash_len, BN_CTX *ctx);
+
+uint16_t md(const char *M, const int M_len, uint16_t H=MD_MAGIC, const bool pad=true);
+
+uint32_t md2(const char *M, const int M_len, uint32_t H=MD2_MAGIC, bool pad=true);
 
 void init_openssl();
 
