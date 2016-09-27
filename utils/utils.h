@@ -9,7 +9,7 @@ int calcHammingDistance(const unsigned char *source1, const unsigned char *sourc
 
 char singleCharXor(unsigned char *dest, unsigned char *source, int source_len);
 
-void breakIntoBlocks(unsigned char **dest, const unsigned char *source, int no_blocks, int block_len);
+void breakIntoBlocks(unsigned char **dest, const unsigned char *source, const int source_len, int no_blocks, int block_len);
 
 void transposeBlocks(unsigned char **dest, unsigned char **source, int no_blocks, int keysize);
 

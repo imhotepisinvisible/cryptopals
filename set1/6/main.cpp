@@ -59,7 +59,7 @@ int main() {
   for (int i = 0; i < noBlocks; i++) {
     blocks[i] = new unsigned char[chosenKeysize];
   }
-  breakIntoBlocks(blocks, inputBytes, noBlocks, chosenKeysize);
+  breakIntoBlocks(blocks, inputBytes, length, noBlocks, chosenKeysize);
 
   unsigned char **transposedBlocks = new unsigned char*[chosenKeysize];
   unsigned char **transposedBlocksStart = transposedBlocks;

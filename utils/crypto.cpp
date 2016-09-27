@@ -122,7 +122,7 @@ int encryptCbc(const unsigned char *plaintext, const int plaintext_len, const un
   for (int i = 0; i < noBlocks; i++) {
     blocks[i] = new unsigned char[blockSize];
   }
-  breakIntoBlocks(blocks, plaintext, noBlocks, blockSize);
+  breakIntoBlocks(blocks, plaintext, plaintext_len, noBlocks, blockSize);
 
   /* Add padding */
   int padding = blockSize - (plaintext_len%blockSize);
@@ -159,7 +159,7 @@ int decryptCbc(const unsigned char *ciphertext, const int ciphertext_len, const 
   for (int i = 0; i < noBlocks; i++) {
     blocks[i] = new unsigned char[blockSize];
   }
-  breakIntoBlocks(blocks, ciphertext, noBlocks, blockSize);
+  breakIntoBlocks(blocks, ciphertext, ciphertext_len, noBlocks, blockSize);
   
   unsigned char workingBlock[blockSize];
   unsigned char xorBlock[blockSize];
@@ -201,7 +201,7 @@ int decryptCtr(const unsigned char *ciphertext, const int ciphertext_len, const 
   for (int i = 0; i < noBlocks; i++) {
     blocks[i] = new unsigned char[blockSize];
   }
-  breakIntoBlocks(blocks, ciphertext, noBlocks, blockSize);
+  breakIntoBlocks(blocks, ciphertext, ciphertext_len, noBlocks, blockSize);
   
   unsigned char workingBlock[blockSize];
   unsigned char keystream[blockSize];
@@ -1014,7 +1014,7 @@ void md_internal(const char *M, const int M_len, const void *H, const int H_size
   for (int i = 0; i < noBlocks; i++) {
     blocks[i] = new unsigned char[blockSize];
   }
-  breakIntoBlocks(blocks, (unsigned char *)M, noBlocks, blockSize);
+  breakIntoBlocks(blocks, (unsigned char *)M, M_len, noBlocks, blockSize);
 
   // Add padding if required
   if (pad) {

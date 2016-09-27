@@ -65,10 +65,14 @@ char singleCharXor(unsigned char *dest, unsigned char *source, int source_len) {
   return winningChar;
 }
 
-void breakIntoBlocks(unsigned char **dest, const unsigned char *source, int no_blocks, int block_len) {
+void breakIntoBlocks(unsigned char **dest, const unsigned char *source, const int source_len, int no_blocks, int block_len) {
+  int len = 0;
   for (int i = 0; i < no_blocks; i++) {
     for (int j = 0; j < block_len; j++)
-      dest[i][j] = *(source++);
+      if (len < source_len) {
+	dest[i][j] = *(source++);
+	len++;
+      }
   }
 }
 
@@ -95,7 +99,7 @@ int detect_cipher(unsigned char *input, int input_len) {
   for (int i = 0; i < noBlocks; i++) {
     blocks[i] = new unsigned char[blockSize];
   }
-  breakIntoBlocks(blocks, input, noBlocks, blockSize);
+  breakIntoBlocks(blocks, input, input_len, noBlocks, blockSize);
 
   bool found = false;
   int firstBlock = -1;

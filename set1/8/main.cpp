@@ -21,7 +21,7 @@ int main() {
     for (int i = 0; i < noBlocks; i++) {
       blocks[i] = new unsigned char[blockSize];
     }
-    breakIntoBlocks(blocks, inputBytes, noBlocks, blockSize);
+    breakIntoBlocks(blocks, inputBytes, length, noBlocks, blockSize);
 
     bool found = false;
     unsigned char foundBytes[blockSize];

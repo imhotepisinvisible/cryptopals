@@ -57,7 +57,7 @@ int main() {
   for (int i = 0; i < noBlocks; i++) {
     blocks[i] = new unsigned char[keysize];
   }
-  breakIntoBlocks(blocks, ciphertext_stream, noBlocks, keysize);
+  breakIntoBlocks(blocks, ciphertext_stream, total_len, noBlocks, keysize);
 
   unsigned char **transposedBlocks = new unsigned char*[keysize];
   unsigned char **transposedBlocksStart = transposedBlocks;

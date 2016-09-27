@@ -25,7 +25,7 @@ vector< pair<char*,char*> > find_collisions(const int n) {
       arc4random_buf(M, 16);
       uint16_t I = md(M, 16, H, false);
       if (collisions[I] != 0) {
-	//cout << "Collision found: " << flags[I] << " and " << i << ". H: " << I << endl;
+	//cout << "Collision found, H: " << I << endl;
 	char *first = new char[16];
 	memcpy(first, M, 16);
 	char *second = new char[16];
@@ -33,6 +33,7 @@ vector< pair<char*,char*> > find_collisions(const int n) {
 	pair<char*,char*> collision(first, second);
 	ret.push_back(collision);
 	H = I;
+	delete [] M;
 	break;
       }
       collisions[I] = M;
