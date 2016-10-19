@@ -93,6 +93,8 @@ uint16_t md(const char *M, const int M_len, uint16_t H=MD_MAGIC, const bool pad=
 
 uint32_t md2(const char *M, const int M_len, uint32_t H=MD2_MAGIC, bool pad=true);
 
+int dh_subgroup_attack(BIGNUM *x, BIGNUM *rn, const BIGNUM *b, const BIGNUM *B, const BIGNUM *p, const BIGNUM *g, const BIGNUM *q, const BIGNUM *j, BN_CTX *ctx);
+
 void init_openssl();
 
 void close_openssl();

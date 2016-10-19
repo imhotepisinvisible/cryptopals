@@ -1,8 +1,10 @@
 #include <iostream>
 #include <cstdint>
+#include <vector>
 
 #include <openssl/conf.h>
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
 #include <openssl/err.h>
 
 #include "crypto.h"
@@ -1059,4 +1061,211 @@ uint32_t md2(const char *M, const int M_len, uint32_t H, bool pad) {
   memcpy(&H, H_pad, sizeof(H));
 
   return H;
+}
+
+int dh_subgroup_attack(BIGNUM *x, BIGNUM *rn, const BIGNUM *b, const BIGNUM *B, const BIGNUM *p, const BIGNUM *g, const BIGNUM *q, const BIGNUM *j, BN_CTX *ctx) {
+  BN_CTX_start(ctx);
+  unsigned char *K_bin = NULL;
+  unsigned char *test_K_bin = NULL;
+  unsigned char *hmac = NULL;
+  unsigned char *found_hmac = NULL;
+  BIGNUM *i_bn = NULL;
+  BIGNUM *test_K = NULL;
+  BIGNUM *rem = NULL;
+  BIGNUM *h = NULL;
+  BIGNUM *pminus1 = NULL;
+  BIGNUM *pminus1overr = NULL;
+  BIGNUM *K = NULL;
+  BIGNUM *xi = NULL;
+  BIGNUM *rnoverr = NULL;
+  BIGNUM *rnmodinv = NULL;
+  BIGNUM *gcd = NULL;
+  BIGNUM *xx = NULL;
+  BIGNUM *yy = NULL;
+  vector<BIGNUM*> factors;
+  vector<pair< BIGNUM*, BIGNUM*> > xs;
+  uint32_t md_len = 0;
+  int factor = -1;
+  int r = 0;
+  int ret = 0;
+  const char *msg = "crazy flamboyant for the rap enjoyment";
+  
+  // Attack
+  if (!BN_one(rn))
+    goto err;
+  
+  // Factor j
+  if (!(rem = BN_CTX_get(ctx)))
+    goto err;
+  
+  for (int i = 2; i <= 0x10000; i++) {
+    if (!(i_bn = BN_new()))
+      goto err;
+    
+    if (!BN_set_word(i_bn, i))
+      goto err;
+    
+    if (!BN_mod(rem, j, i_bn, ctx))
+      goto err;
+    
+    if (BN_is_zero(rem)) {
+      factors.push_back(i_bn);
+    } else {
+      if (i_bn) BN_free(i_bn);
+      i_bn = NULL;
+    }
+  }
+
+  // Remove non-pairwise coprime factors
+  if (!(gcd = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!(xx = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!(yy = BN_CTX_get(ctx)))
+    goto err;
+  
+  for (int i = factors.size()-1; i >=0; i--) {
+    for (int j = i-1; j >= 0; j--) {
+      if (!egcd(factors[i], factors[j], gcd, xx, yy, ctx))
+	goto err;
+  
+      if (!BN_is_one(gcd)) {
+	factors.erase(factors.begin()+i);
+	break;
+      }
+    }
+  }
+  
+  if (!(h = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!(pminus1 = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!BN_sub(pminus1, p, BN_value_one()))
+    goto err;
+  
+  if (!(pminus1overr = BN_CTX_get(ctx)))
+    goto err;
+
+  if (!(K = BN_CTX_get(ctx)))
+    goto err;
+
+  if (!(test_K = BN_CTX_get(ctx)))
+    goto err;
+
+  do {
+    factor++;
+    
+    do {
+      // h := rand(1, p)^((p-1)/r) mod p
+      if (!BN_rand_range(h, p))
+	goto err;
+
+      if (!BN_div(pminus1overr, NULL, pminus1, factors[factor], ctx))
+	goto err;
+
+      if (!BN_mod_exp(h, h, pminus1overr, p, ctx))
+	goto err;
+
+    } while (BN_is_one(h));
+
+    // Bob calcs K
+    if (!BN_mod_exp(K, h, b, p, ctx))
+      goto err;
+
+    K_bin = new unsigned char[BN_num_bytes(K)];
+    BN_bn2bin(K, K_bin);
+
+    hmac = new unsigned char[SHA256_HASH_LEN];
+    hmac = HMAC(EVP_sha256(), K_bin, BN_num_bytes(K), (unsigned char *)msg, strlen(msg), hmac, &md_len);
+
+    // Recover K
+    r = BN_get_word(factors[factor]);
+    found_hmac = new unsigned char[SHA256_HASH_LEN];
+    for (int i = 1; i <= r; i++) {
+      if (!(i_bn = BN_new()))
+	goto err;
+      
+      if (!BN_set_word(i_bn, i))
+	goto err;
+      
+      if (!BN_mod_exp(test_K, h, i_bn, p, ctx))
+	goto err;
+
+      test_K_bin = new unsigned char[BN_num_bytes(test_K)];
+      BN_bn2bin(test_K, test_K_bin);
+
+      found_hmac = HMAC(EVP_sha256(), test_K_bin, BN_num_bytes(test_K), (unsigned char *)msg, strlen(msg), found_hmac, &md_len);
+    
+      if (memcmp(hmac, found_hmac, md_len) == 0) {
+	pair<BIGNUM*,BIGNUM*> br(i_bn, factors[factor]);
+	xs.push_back(br);
+	if (test_K_bin) delete [] test_K_bin;
+	test_K_bin = NULL;
+	break;
+      }
+      
+      if (i_bn) BN_free(i_bn);
+      i_bn = NULL;
+      if (test_K_bin) delete [] test_K_bin;
+      test_K_bin = NULL;
+    }
+
+    if (!BN_mul(rn, rn, factors[factor], ctx))
+      goto err;
+  } while (BN_cmp(rn, q) < 1 && factor+1 < factors.size());
+
+  // Use the Chinese Remainder Theorem to find x
+  BN_zero(x);
+  
+  if (!(xi = BN_CTX_get(ctx)))
+    goto err;
+  
+  if (!(rnoverr = BN_CTX_get(ctx)))
+    goto err;
+  
+  for (int i = 0; i < xs.size(); i++) {
+    if (!BN_div(rnoverr, NULL, rn, xs[i].second, ctx))
+      goto err;
+
+    rnmodinv = modinv(rnoverr, xs[i].second, ctx);
+
+    if (rnmodinv) {
+      if (!BN_mul(xi, xs[i].first, rnoverr, ctx))
+	goto err;
+      
+      if (!BN_mul(xi, xi, rnmodinv, ctx))
+	goto err;
+      
+      if (!BN_add(x, x, xi))
+	goto err;
+    }
+  }
+  
+  if (!BN_mod(x, x, rn, ctx))
+    goto err;
+
+  if (BN_cmp(x, b) == 0) {
+    cout << "Success! b = " << BN_bn2hex(x) << endl;
+    ret = 1;
+  }
+
+ err:
+  if (K_bin) delete [] K_bin;
+  if (test_K_bin) delete [] test_K_bin;
+  if (hmac) delete [] hmac;
+  if (found_hmac) delete [] found_hmac;
+  for (int i = 0; i < factors.size(); i++) {
+    if (factors[i]) BN_free(factors[i]);
+  }
+  for (int i = 0; i < xs.size(); i++) {
+    if (xs[i].first) BN_free(xs[i].first);
+  }
+
+  BN_CTX_end(ctx);
+  
+  return ret;
 }
