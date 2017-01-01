@@ -1,7 +1,8 @@
 #include <iostream>
 
+#include <openssl/sha.h>
+
 #include "ec.h"
-#include "crypto.h"
 
 /*    invert((x, y)) = (x, -y) = (x, p-y)
  */
@@ -198,6 +199,107 @@ int EC_scale(ECPoint &ret, const ECPoint &x, const BIGNUM *k, const ECGroup &gro
  err:
   BN_CTX_end(ctx);
   return rc;
+}
+
+ECDSASig *ECDSA_sign(const char *m, const BIGNUM *d, const ECGroup &group, BN_CTX *ctx) {
+  BN_CTX_start(ctx);
+
+  BIGNUM *k = BN_CTX_get(ctx);
+  BIGNUM *Hm = BN_CTX_get(ctx);
+  BIGNUM *dr = BN_CTX_get(ctx);
+  BIGNUM *Hmdr = BN_CTX_get(ctx);
+  BIGNUM *kmodinv = NULL;
+  ECPoint r_xy;
+  ECDSASig *sig = new ECDSASig;
+  unsigned char hash[SHA256_HASH_LEN];
+
+  if (!Hmdr)
+    goto err;
+  
+  // k := random_scalar(1, n)
+  if (!BN_rand_range(k, group.n))
+    goto err;
+  
+  // r := (k * G).x
+  if (!EC_scale(r_xy, group.G, k, group, ctx))
+    goto err;
+
+  BN_copy(sig->r, r_xy.getx());
+  
+  // s := (H(m) + d*r) * k^-1
+  SHA256((unsigned char *)m, strlen(m), hash);
+
+  if (!BN_bin2bn(hash, SHA256_HASH_LEN, Hm))
+    goto err;
+
+  if (!BN_mod_mul(dr, d, sig->r, group.n, ctx))
+    goto err;
+
+  if (!BN_mod_add(Hmdr, Hm, dr, group.n, ctx))
+    goto err;
+
+  if (!(kmodinv = modinv(k, group.n, ctx)))
+    goto err;
+
+  if (!BN_mod_mul(sig->s, Hmdr, kmodinv, group.n, ctx))
+    goto err;
+
+ err:
+  BN_CTX_end(ctx);
+  if (kmodinv) BN_free(kmodinv);
+  // return (r, s)
+  return sig;
+}
+
+bool ECDSA_verify(const char *m, const ECDSASig *sig, const ECPoint &Q, const ECGroup &group, BN_CTX *ctx) {
+  BN_CTX_start(ctx);
+  bool ret = false;
+
+  BIGNUM *u1 = BN_CTX_get(ctx);
+  BIGNUM *u2 = BN_CTX_get(ctx);
+  BIGNUM *Hm = BN_CTX_get(ctx);
+  BIGNUM *smodinv = NULL;
+  ECPoint u1G;
+  ECPoint u2Q;
+  ECPoint R;
+  unsigned char hash[SHA256_HASH_LEN];
+
+  if (!Hm)
+    goto err;
+
+  // u1 := H(m) * s^-1
+  SHA256((unsigned char *)m, strlen(m), hash);
+
+  if (!(smodinv = modinv(sig->s, group.n, ctx)))
+    goto err;
+
+  if (!BN_bin2bn(hash, SHA256_HASH_LEN, Hm))
+    goto err;
+
+  if (!BN_mod_mul(u1, Hm, smodinv, group.n, ctx))
+    goto err;
+  
+  // u2 := r * s^-1
+  if (!BN_mod_mul(u2, sig->r, smodinv, group.n, ctx))
+    goto err;
+  
+  // R := u1*G + u2*Q
+  if (!EC_scale(u1G, group.G, u1, group, ctx))
+    goto err;
+
+  if (!EC_scale(u2Q, Q, u2, group, ctx))
+    goto err;
+
+  if (!EC_add(R, u1G, u2Q, group, ctx))
+    goto err;
+  
+  // return r = R.x
+  ret = (BN_cmp(sig->r, R.getx()) == 0);
+
+ err:
+  BN_CTX_end(ctx);
+  if (!smodinv) BN_free(smodinv);
+  return ret;
 }
 
 std::ostream& operator<<(std::ostream &out, const ECPoint &point)

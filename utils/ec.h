@@ -3,6 +3,8 @@
 
 #include <openssl/bn.h>
 
+#include "crypto.h"
+
 class ECPoint {
   BIGNUM *x;
   BIGNUM *y;
@@ -59,13 +61,27 @@ class ECPoint {
 };
 
 struct ECGroup {
+  // a coefficient
   BIGNUM *a;
+  
+  // b coefficient
   BIGNUM *b;
+  
+  // Finite field size
   BIGNUM *p;
+  
   ECPoint infinity;
+  
+  // Base point
   ECPoint G;
+  
+  // Base point order
   BIGNUM *n;
+  
+  // Cofactor
   BIGNUM *h;
+  
+  // Group order
   BIGNUM *q;
 
   ECGroup(const char *_a, const char *_b, const char *_p, const ECPoint &_G, const char *_n, const char *_h, const char *_q) {
@@ -84,6 +100,7 @@ struct ECGroup {
     G = _G;
     n = BN_new();
     h = BN_new();
+    q = BN_new();
     BN_dec2bn(&n, _n);
     BN_dec2bn(&h, _h);
     BN_dec2bn(&q, _q);
@@ -98,10 +115,16 @@ struct ECGroup {
   }
 };
 
+typedef DSASig ECDSASig;
+
 int EC_add(ECPoint &ret, const ECPoint &a, const ECPoint &b, const ECGroup &group, BN_CTX *ctx);
 
 int EC_scale(ECPoint &ret, const ECPoint &x, const BIGNUM *k, const ECGroup &group, BN_CTX *ctx);
 
 bool EC_is_infinity(const ECPoint &point, const ECGroup &group);
+
+ECDSASig *ECDSA_sign(const char *m, const BIGNUM *d, const ECGroup &group, BN_CTX *ctx);
+
+bool ECDSA_verify(const char *m, const ECDSASig *sig, const ECPoint &Q, const ECGroup &group, BN_CTX *ctx);
 
 #endif
