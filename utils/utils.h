@@ -19,4 +19,8 @@ int detect_cipher(unsigned char *input, int input_len);
 
 std::string sanitize_input(std::string input);
 
+unsigned char reverse(unsigned char b);
+
+uint64_t reverse_uint64_t(uint64_t b);
+
 #endif

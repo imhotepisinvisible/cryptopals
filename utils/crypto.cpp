@@ -12,6 +12,10 @@
 #include "sha1.h"
 #include "md4.h"
 
+#ifdef ENABLE_GCM
+#include "gf2_poly.h"
+#endif
+
 using namespace std;
 
 const uint8_t SHA1_HASH_LEN = 20;
@@ -195,7 +199,7 @@ int decryptCbc(const unsigned char *ciphertext, const int ciphertext_len, const 
   return plaintext_len;
 }
 
-int decryptCtr(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *key, const unsigned char *nonce, unsigned char *plaintext) {
+int decryptCtr(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *key, const unsigned char *nonce, unsigned char *plaintext, bool nist) {
   int plaintext_len = 0;
   int blockSize = 16;
   int noBlocks = ciphertext_len/blockSize + (ciphertext_len%blockSize ? 1 : 0);
@@ -208,11 +212,19 @@ int decryptCtr(const unsigned char *ciphertext, const int ciphertext_len, const 
   unsigned char workingBlock[blockSize];
   unsigned char keystream[blockSize];
   // Load in nonce
-  memcpy(keystream, nonce, blockSize/2);
+  if (nist) {
+    memcpy(keystream, nonce, 12);
+  } else {
+    memcpy(keystream, nonce, blockSize/2);
+  }
   /* Encrypt the plaintext */
   for (uint64_t i = 0; i < noBlocks; i++) {
-    // Load in counter (Little endian)
-    *(uint64_t *)(keystream+(blockSize/2)) = i;
+    // Load in counter (Little endian or big endian)
+    if (nist) {
+      *(uint64_t *)(keystream+12) = htonl(i+2);
+    } else {
+      *(uint64_t *)(keystream+(blockSize/2)) = i;
+    }
     plaintext_len += encryptEcb(keystream, blockSize, key, workingBlock, true);
     doXor(plaintext, blocks[i], workingBlock, blockSize);
     plaintext += blockSize;
@@ -226,9 +238,118 @@ int decryptCtr(const unsigned char *ciphertext, const int ciphertext_len, const 
   return plaintext_len;
 }
 
-int encryptCtr(const unsigned char *plaintext, const int plaintext_len, const unsigned char *key, const unsigned char *nonce, unsigned char *ciphertext) {
-  return decryptCtr(plaintext, plaintext_len, key, nonce, ciphertext);
+int encryptCtr(const unsigned char *plaintext, const int plaintext_len, const unsigned char *key, const unsigned char *nonce, unsigned char *ciphertext, bool nist) {
+  return decryptCtr(plaintext, plaintext_len, key, nonce, ciphertext, nist);
 }
+
+#ifdef ENABLE_GCM
+mpz_class calculate_g(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *aad, const int aad_len, const mpz_class &h) {
+  mpz_class g(0);
+
+  const int blocksize = 16;
+
+  // x^128 + x^7 + x^2 + x + 1 represented as bits in an integer:
+  mpz_class m("0x100000000000000000000000000000087");
+
+  // Pad AAD
+  int aad_no_blocks = aad_len/blocksize + (aad_len % blocksize ? 1 : 0);
+  unsigned char *aad_padded = new unsigned char[aad_no_blocks*blocksize];
+  memcpy(aad_padded, aad, aad_len);
+  memset(aad_padded+aad_len, 0, (aad_no_blocks*blocksize)-aad_len);
+
+  // Pad ciphertext
+  int ciphertext_no_blocks = ciphertext_len/blocksize + (ciphertext_len % blocksize ? 1 : 0);
+  unsigned char *ciphertext_padded = new unsigned char[ciphertext_no_blocks*blocksize];
+  memcpy(ciphertext_padded, ciphertext, ciphertext_len);
+  memset(ciphertext_padded+ciphertext_len, 0, (ciphertext_no_blocks*blocksize)-ciphertext_len);
+
+  unsigned char len_block[blocksize] = {0};
+  uint64_t aad_len_bits = reverse_uint64_t(aad_len * 8);
+  memcpy(len_block, &aad_len_bits, sizeof(uint64_t));
+  uint64_t ciphertext_len_bits = reverse_uint64_t(ciphertext_len * 8);
+  memcpy(len_block+8, &ciphertext_len_bits, sizeof(uint64_t));
+
+  for (int i = 0; i < aad_no_blocks; i++) {
+    g = gf2_add(g, block2fieldel(aad_padded+i*blocksize));
+    g = gf2_modmul(g, h, m);
+  }
+
+  for (int i = 0; i < ciphertext_no_blocks; i++) {
+    g = gf2_add(g, block2fieldel(ciphertext_padded+i*blocksize));
+    g = gf2_modmul(g, h, m);
+  }
+
+  g = gf2_add(g, block2fieldel(len_block));
+  g = gf2_modmul(g, h, m);
+
+  delete [] aad_padded;
+  delete [] ciphertext_padded;
+
+  return g;
+}
+
+int calculateGcmTag(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *aad, const int aad_len, const unsigned char *key, const unsigned char *nonce, unsigned char **tag) {
+  const int tag_len = 16;
+  const int blocksize = 16;
+  
+  // x^128 + x^7 + x^2 + x + 1 represented as bits in an integer:
+  mpz_class m("0x100000000000000000000000000000087");
+
+  unsigned char zeros[blocksize] = {0};
+  unsigned char h_block[blocksize];
+
+  encryptEcb(zeros, 16, key, h_block, true);
+
+  mpz_class h = block2fieldel(h_block);
+
+  mpz_class g = calculate_g(ciphertext, ciphertext_len, aad, aad_len, h);
+  
+  unsigned char nonce_block[blocksize] = {0};
+  memcpy(nonce_block, nonce, 12);
+  nonce_block[blocksize-1] = 1;
+
+  unsigned char s_block[blocksize];
+  encryptEcb(nonce_block, 16, key, s_block, true);
+  mpz_class s = block2fieldel(s_block);
+
+  mpz_class t = gf2_add(g, s);
+
+  *tag = fieldel2block(t);
+
+  return tag_len;
+}
+
+int decryptGcm(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *aad, const int aad_len, const unsigned char *key, const unsigned char *nonce, unsigned char *plaintext) {
+  int plaintext_len = 0;
+
+  // First, verify the tag
+  unsigned char *tag = NULL;
+  int tag_len = calculateGcmTag(ciphertext, ciphertext_len-16, aad, aad_len, key, nonce, &tag);
+
+  if (CRYPTO_memcmp(tag, ciphertext+ciphertext_len-16, 16) == 0) {
+    plaintext_len = decryptCtr(ciphertext, ciphertext_len, key, nonce, plaintext, true);
+    plaintext_len -= tag_len;
+  } else {
+    cout << "Could not validate tag" << endl;
+  }
+
+  return plaintext_len;
+}
+
+int encryptGcm(const unsigned char *plaintext, const int plaintext_len, const unsigned char *aad, const int aad_len, const unsigned char *key, const unsigned char *nonce, unsigned char *ciphertext) {
+  int ciphertext_len = encryptCtr(plaintext, plaintext_len, key, nonce, ciphertext, true);
+
+  unsigned char *tag = NULL;
+  
+  int tag_len = calculateGcmTag(ciphertext, ciphertext_len, aad, aad_len, key, nonce, &tag);
+
+  memcpy(ciphertext+ciphertext_len, tag, tag_len);
+
+  delete [] tag;
+
+  return ciphertext_len + tag_len;
+}
+#endif
 
 bool generate_secret_prefix_mac(const unsigned char *key, const int key_len, const char *message, unsigned char *mac) {
   bool ret = false;

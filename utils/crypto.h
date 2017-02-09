@@ -3,6 +3,11 @@
 
 #include <openssl/bn.h>
 
+#ifdef ENABLE_GCM
+#include <gmp.h>
+#include <gmpxx.h>
+#endif
+
 extern const uint8_t SHA1_HASH_LEN;
 extern const uint8_t MD4_HASH_LEN;
 extern const uint8_t SHA256_HASH_LEN;
@@ -43,9 +48,17 @@ int encryptCbc(const unsigned char *plaintext, const int plaintext_len, const un
 
 int decryptCbc(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *key, const unsigned char *iv, unsigned char *plaintext);
 
-int decryptCtr(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *key, const unsigned char *nonce, unsigned char *plaintext);
+int decryptCtr(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *key, const unsigned char *nonce, unsigned char *plaintext, bool nist=false);
 
-int encryptCtr(const unsigned char *plaintext, const int plaintext_len, const unsigned char *key, const unsigned char *nonce, unsigned char *ciphertext);
+int encryptCtr(const unsigned char *plaintext, const int plaintext_len, const unsigned char *key, const unsigned char *nonce, unsigned char *ciphertext, bool nist=false);
+
+#ifdef ENABLE_GCM
+mpz_class calculate_g(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *aad, const int aad_len, const mpz_class &h);
+
+int decryptGcm(const unsigned char *ciphertext, const int ciphertext_len, const unsigned char *aad, const int aad_len, const unsigned char *key, const unsigned char *nonce, unsigned char *plaintext);
+
+int encryptGcm(const unsigned char *plaintext, const int plaintext_len, const unsigned char *aad, const int aad_len, const unsigned char *key, const unsigned char *nonce, unsigned char *ciphertext);
+#endif
 
 bool generate_secret_prefix_mac(const unsigned char *key, const int key_len, const char *message, unsigned char *mac);
 
