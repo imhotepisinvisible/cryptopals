@@ -5,12 +5,18 @@
 #ifndef GF2_POLY_H
 #define GF2_POLY_H
 
+#include <vector>
+
 #include <gmp.h>
 #include <gmpxx.h>
 
 mpz_class block2fieldel(const unsigned char *block);
 
 unsigned char *fieldel2block(mpz_class el);
+
+std::vector<uint8_t> fieldel2vector(const mpz_class &el);
+
+mpz_class vector2fieldel(const std::vector<uint8_t> &vec);
 
 mpz_class gf2_add(const mpz_class &a, const mpz_class &b);
 

@@ -29,6 +29,28 @@ unsigned char *fieldel2block(mpz_class el) {
   return ret;
 }
 
+vector<uint8_t> fieldel2vector(const mpz_class &el) {
+  vector<uint8_t> ret(128);
+  
+  for (int i = 0; i < 128; i++) {
+    ret[i] = mpz_tstbit(el.get_mpz_t(), i);
+  }
+
+  return ret;
+}
+
+mpz_class vector2fieldel(const vector<uint8_t> &vec) {
+  mpz_class ret;
+
+  for (int i = 0; i < vec.size(); i++) {
+    if (vec[i]) {
+      mpz_setbit(ret.get_mpz_t(), i);
+    }
+  }
+  
+  return ret;
+}
+
 mpz_class gf2_add(const mpz_class &a, const mpz_class &b) {
   return a ^ b;
 }
