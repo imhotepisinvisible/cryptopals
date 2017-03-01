@@ -121,7 +121,13 @@ int EC_add(ECPoint &ret, const ECPoint &a, const ECPoint &b, const ECGroup &grou
 
 int EC_scale(ECPoint &ret, const ECPoint &x, const BIGNUM *k, const ECGroup &group, BN_CTX *ctx);
 
+int EC_invert(ECPoint &ret, const ECPoint &point, const ECGroup &group);
+
+bool EC_equals(const ECPoint &a, const ECPoint &b);
+
 bool EC_is_infinity(const ECPoint &point, const ECGroup &group);
+
+int EC_mont_ladder(BIGNUM *ret, const BIGNUM * u, const BIGNUM *k, const ECGroup &group, BN_CTX *ctx);
 
 ECDSASig *ECDSA_sign(const char *m, const BIGNUM *d, const ECGroup &group, BN_CTX *ctx);
 
