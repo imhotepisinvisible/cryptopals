@@ -121,7 +121,7 @@ int EC_add(ECPoint &ret, const ECPoint &a, const ECPoint &b, const ECGroup &grou
 
 int EC_scale(ECPoint &ret, const ECPoint &x, const BIGNUM *k, const ECGroup &group, BN_CTX *ctx);
 
-int EC_invert(ECPoint &ret, const ECPoint &point, const ECGroup &group);
+int EC_invert(ECPoint &ret, const ECPoint &point, const ECGroup &group, BN_CTX *ctx);
 
 bool EC_equals(const ECPoint &a, const ECPoint &b);
 

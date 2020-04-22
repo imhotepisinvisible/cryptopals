@@ -645,7 +645,7 @@ int main() {
       if (!(index = BN_new()))
 	  goto err;
     
-      if (!EC_invert(yprime, wgroup.G, wgroup))
+      if (!EC_invert(yprime, wgroup.G, wgroup, ctx))
 	goto err;
     
       if (!EC_scale(yprime, yprime, narrowxguesses[i], wgroup, ctx))

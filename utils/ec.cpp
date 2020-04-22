@@ -7,10 +7,10 @@
 /*
  *    invert((x, y)) = (x, -y) = (x, p-y)
  */
-int EC_invert(ECPoint &ret, const ECPoint &point, const ECGroup &group) {
+int EC_invert(ECPoint &ret, const ECPoint &point, const ECGroup &group, BN_CTX *ctx) {
   ret.setx(point.getx());
   BIGNUM *y = BN_new();
-  BN_sub(y, group.p, point.gety());
+  BN_mod_sub(y, group.p, point.gety(), group.p, ctx);
   ret.sety(y);
 
   if (y) BN_free(y);
@@ -66,7 +66,7 @@ int EC_add(ECPoint &ret, const ECPoint &a, const ECPoint &b, const ECGroup &grou
   BIGNUM *x2x1 =  BN_CTX_get(ctx);;
   BIGNUM *x2x1_ = NULL;
   ECPoint invert_b;
-  EC_invert(invert_b, b, group);
+  EC_invert(invert_b, b, group, ctx);
   
   if (EC_is_infinity(a, group)) {
     ret = b;
